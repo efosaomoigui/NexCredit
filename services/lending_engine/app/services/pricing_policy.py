@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.models import Loan, LoanProduct, LoanStatus, User, PricingPolicyConfig
+from shared.models import KycRecord, Loan, LoanProduct, LoanStatus, PricingPolicyConfig, SimCreditProfile, User
 
 
 @dataclass
@@ -109,6 +109,24 @@ class PricingPolicyService:
         return (len(reasons) == 0), reasons
 
     @staticmethod
+    async def _load_simulated_credit_profile(db: AsyncSession, user: User) -> SimCreditProfile | None:
+        """
+        Resolve DB-backed fallback credit profile for the borrower when available.
+        This keeps lending eligibility contract-stable while external bureau providers are pending.
+        """
+        kyc = (await db.execute(select(KycRecord).where(KycRecord.user_id == user.id))).scalar_one_or_none()
+        bvn = getattr(kyc, "bvn_hash", None) if kyc else None
+        if not bvn:
+            return None
+        return (
+            await db.execute(
+                select(SimCreditProfile)
+                .where(SimCreditProfile.bvn == bvn, SimCreditProfile.is_current == True)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    @staticmethod
     async def evaluate_for_user(db: AsyncSession, user: User) -> dict[str, Any]:
         active_cfg = (
             await db.execute(
@@ -160,11 +178,12 @@ class PricingPolicyService:
                 item["ineligible_reasons"] = reasons
                 rejected.append(item)
 
-        # Placeholder scored signals (to be fed by dedicated engines as they are finalized).
+        sim_credit = await PricingPolicyService._load_simulated_credit_profile(db, user)
+        credit_score = int(sim_credit.score) if sim_credit else 0
         measured_scores = {
-            "credit_score": 0,
+            "credit_score": credit_score,
             "location_score": 0,
-            "composite_score": 0,
+            "composite_score": credit_score,
         }
         score_gate_failures: list[str] = []
         if measured_scores["credit_score"] < int(score_gates.get("credit_score_min", 0)):
@@ -183,7 +202,7 @@ class PricingPolicyService:
                 "ineligible_products": rejected,
                 "selected_product": None,
                 "effective_interest_rate": None,
-                "pricing_reason_codes": score_gate_failures,
+                "pricing_reason_codes": score_gate_failures + (["SIMULATED_CREDIT_PROFILE_USED"] if sim_credit else []),
                 "benefits": {"coupon_eligible": False, "limit_bonus": 0},
             }
 
@@ -206,9 +225,13 @@ class PricingPolicyService:
         limit_multiplier = float(limit_multipliers.get(band, 1.0))
         effective_rate = round(selected["base_interest_rate"] * rate_multiplier, 6)
         effective_limit = int(selected["max_amount"] * limit_multiplier)
+        if sim_credit:
+            effective_limit = min(effective_limit, int(sim_credit.recommended_limit))
         effective_limit = max(int(selected["min_amount"]), effective_limit)
 
         pricing_reasons = [f"PERFORMANCE_BAND_{band.upper()}", "PRODUCT_BASED_PRICING", "POLICY_APPLIED"]
+        if sim_credit:
+            pricing_reasons.append("SIMULATED_CREDIT_PROFILE_USED")
         benefits = {
             "coupon_eligible": band == "high" and perf.completed_loans >= 3 and perf.overdue_loans == 0,
             "limit_bonus": max(0, effective_limit - int(selected["max_amount"])),
