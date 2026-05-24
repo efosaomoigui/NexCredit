@@ -13,9 +13,10 @@ import * as SecureStore from "expo-secure-store";
 import { theme } from "../../theme/theme";
 
 const TENOR_OPTIONS = [
+  { label: "7 Days", days: 7 },
   { label: "15 Days", days: 15 },
+  { label: "21 Days", days: 21 },
   { label: "30 Days", days: 30 },
-  { label: "60 Days", days: 60 },
   { label: "90 Days", days: 90 },
 ];
 
@@ -165,7 +166,7 @@ export default function ApplyScreen() {
         <Pressable
           style={styles.ctaBtn}
           onPress={async () => {
-            const selection = { amount, tenorDays: tenor, installments };
+            const selection = { amount, tenorDays: tenor, installments, purpose };
             await SecureStore.setItemAsync("user_loan_selection", JSON.stringify(selection));
             navigation.navigate("ReviewTerms");
           }}

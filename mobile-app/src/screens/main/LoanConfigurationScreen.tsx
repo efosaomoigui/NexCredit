@@ -54,7 +54,7 @@ export default function LoanConfigurationScreen() {
   }, [actions]);
 
   const handleContinue = async () => {
-    const selection = { amount, tenorDays, installments };
+    const selection = { amount, tenorDays, installments, purpose: offer?.purpose || "Personal" };
     await SecureStore.setItemAsync("user_loan_selection", JSON.stringify(selection));
     await setCheckpoint("offer_ready");
     navigation.navigate("ReviewTerms");
