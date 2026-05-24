@@ -246,9 +246,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
           let lastError: any = null;
           const candidates = getIdentityStartCandidates().slice(0, 2);
+          console.info("[auth-start] begin", {
+            baseURL: getResolvedApiBaseUrl(),
+            candidates,
+            channel: otpChannel,
+            identifierPreview: isEmail ? body.email : body.phone,
+          });
           for (const endpoint of candidates) {
             try {
               const token = await SecureStore.getItemAsync("token");
+              console.info("[auth-start] attempt", { endpoint, body });
               const res = await axios.post(endpoint, body, {
                 timeout: 10000,
                 headers: {
@@ -256,24 +263,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                   ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
               });
-              if (res.data.success) {
+              const payload = res.data?.data || {};
+              const hasOtpProgressSignal =
+                typeof payload.identifier === "string" &&
+                typeof payload.sent_via === "string" &&
+                (payload.delivery_status === "delivered" || payload.delivery_status === "fallback");
+              const isSuccessEnvelope = res.data?.success === true;
+              if (isSuccessEnvelope || hasOtpProgressSignal) {
+                console.info("[auth-start] success", {
+                  endpoint,
+                  successEnvelope: isSuccessEnvelope,
+                  deliveryStatus: payload.delivery_status,
+                  sentVia: payload.sent_via,
+                });
                 return {
-                  sentVia: (res.data.data?.sent_via || otpChannel) as "sms" | "email" | "whatsapp",
-                  normalizedIdentifier: (res.data.data?.identifier || identifier) as string,
-                  isNewUser: Boolean(res.data.data?.is_new_user),
-                  debugOtp: typeof res.data.data?.debug_otp === "string" ? res.data.data.debug_otp : undefined,
+                  sentVia: (payload.sent_via || otpChannel) as "sms" | "email" | "whatsapp",
+                  normalizedIdentifier: (payload.identifier || identifier) as string,
+                  isNewUser: Boolean(payload.is_new_user),
+                  debugOtp: typeof payload.debug_otp === "string" ? payload.debug_otp : undefined,
                 };
               }
-              lastError = new Error(res.data.error?.message || "Failed to send OTP");
+              lastError = new Error(res.data?.error?.message || res.data?.message || "Failed to send OTP");
+              console.warn("[auth-start] non-success response", {
+                endpoint,
+                status: res.status,
+                data: res.data,
+              });
             } catch (error: any) {
               lastError = error;
+              console.warn("[auth-start] attempt failed", {
+                endpoint,
+                code: error?.code || "unknown",
+                status: error?.response?.status || null,
+                message: error?.response?.data?.error?.message || error?.response?.data?.message || error?.message,
+                baseURL: getResolvedApiBaseUrl(),
+                path: "/identity/auth/start",
+              });
             }
           }
 
           const isNetwork = !lastError?.response;
           const isTimeout = String(lastError?.code || "").toUpperCase() === "ECONNABORTED";
           if (isTimeout) {
-            throw new Error("Request timed out. Please tap Continue again.");
+            throw new Error("Request timed out while reaching identity service. Please tap Continue to retry.");
           }
           if (isNetwork) {
             const base = getResolvedApiBaseUrl();
@@ -285,7 +317,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               `If using a physical phone, set EXPO_PUBLIC_API_BASE_URL to your computer LAN IP (example: http://192.168.x.x:8888/api/v1).`
             );
           }
-          throw new Error(lastError?.response?.data?.error?.message || lastError?.message || "Failed to send OTP");
+          throw new Error(
+            lastError?.response?.data?.error?.message ||
+            lastError?.response?.data?.message ||
+            lastError?.message ||
+            "Failed to send OTP"
+          );
         },
         async verifyOtp(identifier, code) {
           const res = await api.post("/identity/auth/otp/verify", { identifier, otp_code: code }, { timeout: 10000 });
