@@ -52,7 +52,7 @@ class FraudService:
         # 4. Behavioral Anomaly (AI Engine)
         import httpx
         import os
-        ai_url = os.getenv("AI_ENGINE_URL", "http://ai_engine:8000/api/v1")
+        ai_url = os.getenv("AI_ENGINE_URL", "http://ai_engine:8009")
         try:
             async with httpx.AsyncClient() as client:
                 # Get behavioral features (mocking values that would normally come from mobile SDK telemetry)
