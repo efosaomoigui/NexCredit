@@ -1,0 +1,3 @@
+<!-- [COMPASS RECOVERY — UPDATED: 2026-05-17T13:41:32.835Z] -->
+
+1) Define endpoint contracts and response envelopes for each onboarding checkpoint. 2) Implement mobile checkpoint state machine and resume routing hardening. 3) Add backend handlers that always return contract-valid payloads with provider status flags. 4) Build provider adapter interfaces (face/BVN/bank verify) and wire one concrete adapter plus mock adapter. 5) Implement Nigeria geolocation gate with explicit denied/unknown handling. 6) Finish consent/permission architecture with required vs optional matrix. 7) Add BVN-bank name matching normalization and mismatch UX. 8) Add audit logging hooks for each state transition and request trace IDs.

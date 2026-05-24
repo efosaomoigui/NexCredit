@@ -1,0 +1,31 @@
+# =============================================================================
+# identity_engine — Development Dockerfile
+# Hot-reload enabled via uvicorn --reload
+# =============================================================================
+FROM python:3.11-slim
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps (shared + service)
+COPY services/identity_engine/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# The source code is volume-mounted at runtime for hot-reload.
+# We set PYTHONPATH so 'shared' is importable from service code.
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+# Run uvicorn from the service directory with reload watching both
+# the service code and the shared library.
+CMD ["uvicorn", "service.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--reload", \
+     "--reload-dir", "/app/service", \
+     "--reload-dir", "/app/shared"]

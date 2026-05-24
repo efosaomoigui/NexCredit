@@ -1,0 +1,61 @@
+# =============================================================================
+# NexCredit — .gitignore
+# =============================================================================
+
+# --- Secrets (NEVER COMMIT) --------------------------------------------------
+.env
+*.pem
+*.key
+gcs_service_account.json
+secrets/
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# --- Node.js / Next.js -------------------------------------------------------
+node_modules/
+.next/
+out/
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# --- Docker ------------------------------------------------------------------
+*.override.yml
+
+# --- OS ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE ---------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Alembic -----------------------------------------------------------------
+# Keep the versions dir but ignore compiled artifacts
+infra/migrations/__pycache__/
+
+# --- Test artefacts ----------------------------------------------------------
+.hypothesis/
+coverage.xml
+*.lcov

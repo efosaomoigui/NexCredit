@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm p-6;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 active:scale-[0.99];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition-all duration-200;
+  }
+
+  .btn-tertiary {
+    @apply inline-flex items-center justify-center bg-slate-900 text-white hover:bg-slate-800 font-bold py-2 px-3 rounded-lg transition-colors;
+  }
+
+  .input-field {
+    @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all;
+  }
+
+  .label {
+    @apply text-xs font-bold text-slate-500 uppercase tracking-wider;
+  }
+
+  .badge {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider;
+  }
+}
+
+/* Glassmorphism Sidebar */
+.sidebar-glass {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+}

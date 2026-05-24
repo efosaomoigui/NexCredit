@@ -1,0 +1,192 @@
+
+
+networks:
+  lending_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: nexcredit_postgres_data
+  redis_data:
+    name: nexcredit_redis_data
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexcredit_postgres
+    environment:
+      POSTGRES_USER: nexcredit
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: lending_dev
+    ports: ["5433:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [lending_net]
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "pg_isready -U nexcredit -d lending_dev"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexcredit_redis
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
+    networks: [lending_net]
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "redis-cli", "ping"]
+
+  identity_engine:
+    build: { context: ., dockerfile: services/identity_engine/Dockerfile }
+    container_name: nexcredit_identity_engine
+    env_file: [.env]
+    ports: ["8001:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+      - ./infra:/app/infra:ro
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  lending_engine:
+    build: { context: ., dockerfile: services/lending_engine/Dockerfile }
+    container_name: nexcredit_lending_engine
+    env_file: [.env]
+    ports: ["8002:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  payment_engine:
+    build: { context: ., dockerfile: services/payment_engine/Dockerfile }
+    container_name: nexcredit_payment_engine
+    env_file: [.env]
+    ports: ["8003:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  risk_engine:
+    build: { context: ., dockerfile: services/risk_engine/Dockerfile }
+    container_name: nexcredit_risk_engine
+    env_file: [.env]
+    ports: ["8004:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  admin_dashboard:
+    build: { context: ./admin-dashboard, dockerfile: Dockerfile.dev }
+    container_name: nexcredit_admin_dashboard
+    env_file: [.env]
+    # NOTE: Many Chromium-based browsers block port 6000 (X11) as "unsafe".
+    ports: ["6100:3000"]
+    networks: [lending_net]
+    volumes:
+      - ./admin-dashboard:/app
+      - /app/node_modules
+
+  collections_panel:
+    build: { context: ./collections-panel, dockerfile: Dockerfile.dev }
+    container_name: nexcredit_collections_panel
+    env_file: [.env]
+    ports: ["3001:3001"]
+    networks: [lending_net]
+    volumes:
+      - ./collections-panel:/app
+      - /app/node_modules
+
+  notification_engine:
+    build: { context: ., dockerfile: services/notification_engine/Dockerfile }
+    container_name: nexcredit_notification_engine
+    env_file: [.env]
+    ports: ["8005:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  collections_engine:
+    build: { context: ., dockerfile: services/collections_engine/Dockerfile }
+    container_name: nexcredit_collections_engine
+    env_file: [.env]
+    ports: ["8006:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  crm_engine:
+    build: { context: ., dockerfile: services/crm_engine/Dockerfile }
+    container_name: nexcredit_crm_engine
+    env_file: [.env]
+    ports: ["8007:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  compliance_engine:
+    build: { context: ., dockerfile: services/compliance_engine/Dockerfile }
+    container_name: nexcredit_compliance_engine
+    env_file: [.env]
+    ports: ["8008:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  ai_engine:
+    build: { context: ., dockerfile: services/ai_engine/Dockerfile }
+    container_name: nexcredit_ai_engine
+    env_file: [.env]
+    ports: ["8009:8000"]
+    networks: [lending_net]
+    volumes:
+      - ./shared:/app/shared
+      - ./services:/app/services
+    depends_on: { postgres: { condition: service_healthy } }
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nexcredit_nginx
+    ports: ["8888:80", "443:443"]
+    volumes:
+      - ./infra/nginx/local.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/proxy_params:/etc/nginx/proxy_params:ro
+    networks: [lending_net]
+    depends_on: [identity_engine, lending_engine, payment_engine, risk_engine]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nexcredit_prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [lending_net]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nexcredit_grafana
+    ports: ["3100:3000"]
+    volumes:
+      - ./infra/monitoring/grafana_datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./infra/monitoring/grafana_dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./infra/monitoring/lending_dashboard.json:/etc/grafana/provisioning/dashboards/lending_dashboard.json:ro
+    networks: [lending_net]
+    depends_on: [prometheus]

@@ -1,0 +1,2 @@
+date,step_id,module,area,severity,summary,expected,actual,root_cause,fix_ref,retest_status,notes
+YYYY-MM-DD,F-01.01,mobile,auth,P1,App crashes on launch,App opens to LoginScreen,Crash with red screen,,,NOT_STARTED,

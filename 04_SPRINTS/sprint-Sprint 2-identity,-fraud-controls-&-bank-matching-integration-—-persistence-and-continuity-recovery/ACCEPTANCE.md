@@ -1,0 +1,1 @@
+New and returning borrowers complete onboarding without dead-end branches; first offer acceptance always persists or returns explicit retryable failure; admin can view and act on submission records; stage rendering matches backend workflow state across restarts; fallback responses remain truthful, contract-valid, and observable.

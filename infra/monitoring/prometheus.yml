@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alerts.yaml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'identity_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['identity_engine:8000']
+
+  - job_name: 'lending_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['lending_engine:8000']
+
+  - job_name: 'payment_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['payment_engine:8000']
+
+  - job_name: 'risk_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['risk_engine:8000']
+
+  - job_name: 'notification_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['notification_engine:8000']
+
+  - job_name: 'collections_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['collections_engine:8000']
+
+  - job_name: 'crm_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['crm_engine:8000']
+
+  - job_name: 'compliance_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['compliance_engine:8000']
+
+  - job_name: 'ai_engine'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ai_engine:8000']

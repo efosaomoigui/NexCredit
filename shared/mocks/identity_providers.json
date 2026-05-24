@@ -1,0 +1,58 @@
+{
+  "bvn_success": {
+    "status": "success",
+    "data": {
+      "bvn": "22222222222",
+      "first_name": "John",
+      "last_name": "Doe",
+      "dob": "1990-01-01",
+      "phone": "+2348123456789"
+    }
+  },
+  "bvn_name_mismatch": {
+    "status": "failed",
+    "error": {
+      "code": "NAME_MISMATCH",
+      "message": "The name on the BVN record does not match the provided profile name."
+    }
+  },
+  "nin_success": {
+    "status": "success",
+    "data": {
+      "nin": "12345678901",
+      "first_name": "John",
+      "last_name": "Doe",
+      "gender": "male"
+    }
+  },
+  "selfie_success": {
+    "status": "success",
+    "data": {
+      "liveness_passed": true,
+      "match_score": 0.98
+    }
+  },
+  "selfie_failure": {
+    "status": "success",
+    "data": {
+      "liveness_passed": false,
+      "match_score": 0.45
+    }
+  },
+  "bank_account_match": {
+    "status": "success",
+    "data": {
+      "account_name": "JOHN DOE",
+      "account_number": "0123456789",
+      "bank_name": "Access Bank"
+    }
+  },
+  "bank_account_mismatch": {
+    "status": "success",
+    "data": {
+      "account_name": "PETER PAN",
+      "account_number": "0123456789",
+      "bank_name": "Access Bank"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Fix first-loan acceptance persistence under unstable network; enforce idempotent write semantics; align mobile stage and backend workflow state; stabilize new and returning resume behavior; maintain contract-valid fallback responses for unavailable providers; preserve human-readable inline errors and admin visibility for all critical submissions.

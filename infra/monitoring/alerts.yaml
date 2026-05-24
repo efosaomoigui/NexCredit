@@ -1,0 +1,26 @@
+# NexCredit PagerDuty & GCP Alerting Rules
+
+alerts:
+  - name: DisbursementFailure
+    condition: metric.type = "custom.googleapis.com/payment/disbursement_failure_count" AND value > 0
+    severity: P1
+    channel: PagerDuty
+    description: "IMMEDIATE: A loan disbursement has failed. Check Flutterwave balance and logs."
+
+  - name: HighErrorRate
+    condition: metric.type = "logging.googleapis.com/user/error_count" AND rate(5m) > 0.05
+    severity: P1
+    channel: PagerDuty
+    description: "Error rate exceeded 5% over 5 minutes. Potential service degradation."
+
+  - name: DatabaseConnectionLimit
+    condition: metric.type = "cloudsql.googleapis.com/database/postgresql/num_connections" AND value > 80
+    severity: P2
+    channel: Slack
+    description: "Database connections approaching pool limit. Consider scaling Cloud SQL."
+
+  - name: CeleryQueueStall
+    condition: metric.type = "custom.googleapis.com/celery/queue_depth" AND value > 500
+    severity: P2
+    channel: PagerDuty
+    description: "Celery task queue is backed up. Possible worker failure or heavy load."

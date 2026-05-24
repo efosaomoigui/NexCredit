@@ -1,0 +1,3 @@
+<!-- [COMPASS RECOVERY — UPDATED: 2026-05-17T13:41:32.860Z] -->
+
+Implement Sprint 2 in NexCredit with zero architecture drift. Preserve loan-intent-first UX and keep mobile non-failing by design. Build checkpoint state machine, backend contract-safe endpoints, and provider abstraction for face/BVN/bank verification. Ensure every critical step emits backend request traces and audit logs. Add deterministic fallback behavior for unavailable third-party APIs. Do not alter theme/core routing philosophy. Deliver working first-time and returning-user flows through eligibility handoff boundary with stable resume behavior and human-readable inline errors.

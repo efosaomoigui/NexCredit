@@ -1,0 +1,58 @@
+name: NexCredit Production Deployment
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r services/identity_engine/requirements.txt
+      - name: Run unit tests
+        run: pytest
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auth GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Build Docker Images
+        run: |
+          docker build -t gcr.io/nexcredit-prod/identity-engine:latest services/identity_engine
+          docker push gcr.io/nexcredit-prod/identity-engine:latest
+
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to Staging
+        run: echo "Deploying to Staging..."
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.nexcredit.ng
+    # Manual Approval Gate enabled via GitHub Environment Settings
+    steps:
+      - name: Deploy to Production
+        run: echo "Deploying to Production..."
+      - name: Notify Slack
+        if: always()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"🚀 Deployment to Production: ${{ job.status }}"}' \
+          ${{ secrets.SLACK_WEBHOOK_URL }}

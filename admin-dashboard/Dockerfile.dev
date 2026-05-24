@@ -1,0 +1,26 @@
+# =============================================================================
+# admin-dashboard — Development Dockerfile
+# Hot-reload enabled via Next.js dev server
+# =============================================================================
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm config set fetch-retries 5 \
+  && npm config set fetch-retry-mintimeout 20000 \
+  && npm config set fetch-retry-maxtimeout 120000 \
+  && npm config set fetch-timeout 300000 \
+  && npm ci --no-audit --no-fund
+
+# Copy source (compose does not currently volume-mount this directory)
+COPY . .
+
+# Source code can be volume-mounted at runtime for hot-reload
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]

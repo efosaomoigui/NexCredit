@@ -1,0 +1,3 @@
+<!-- [COMPASS RECOVERY — UPDATED: 2026-05-17T13:41:32.823Z] -->
+
+Complete operational first-time and returning-user mobile flow checkpoints with backend-request visibility for face verification, Nigeria location checks, permissions/consent capture, BVN-bank matching, and failure-safe responses. Introduce provider abstraction and integrate at least one live/sandbox identity path while maintaining fallback behavior.

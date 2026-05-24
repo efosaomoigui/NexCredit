@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --radius: 0.75rem;
+}
+
+body {
+  background: #020617;
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+/* Recharts Customizations */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #1e293b;
+}
+
+.recharts-tooltip-cursor {
+  fill: #1e293b;
+  fill-opacity: 0.4;
+}

@@ -1,0 +1,3 @@
+<!-- [COMPASS RECOVERY — UPDATED: 2026-05-17T13:41:32.848Z] -->
+
+A new user and returning user can complete full mobile flow without navigation dead-ends; every major step sends observable backend requests; fallback responses keep flow moving when providers are unavailable; BVN+face+bank checks produce deterministic statuses; Nigeria enforcement and consent gating are active; eligibility handoff to next sprint is structurally complete.

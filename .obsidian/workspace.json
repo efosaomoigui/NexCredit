@@ -1,0 +1,214 @@
+{
+  "main": {
+    "id": "199dd8b968f28aa1",
+    "type": "split",
+    "children": [
+      {
+        "id": "66884ad8be332ca9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ab9235a5ca807d01",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "03_PRODUCT/vision.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "vision"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cdcb44f6f55be2ec",
+    "type": "split",
+    "children": [
+      {
+        "id": "1671a44dcb64848b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "038fa4f4af480cac",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": true
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "87039b9633b47549",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "d56e57f9b85d63d6",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "13217fca3e457fe3",
+    "type": "split",
+    "children": [
+      {
+        "id": "8d31950eebba8387",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3f0990573d97945f",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "01_PLANNING/domain.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for domain"
+            }
+          },
+          {
+            "id": "e72061e65012011e",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "01_PLANNING/domain.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from domain"
+            }
+          },
+          {
+            "id": "adb0903f8507c10d",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "c469a65ded1332d6",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "d34187139a61043e",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "01_PLANNING/domain.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of domain"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "ab9235a5ca807d01",
+  "lastOpenFiles": [
+    "RUNBOOK.md",
+    "00_BRAIN/PROVIDER_DECISION_MATRIX.md",
+    "services/payment_engine/app/api/v1/routes/__pycache__/repayments.cpython-312.pyc.136618522545712",
+    "AGENTS.md",
+    "AGENT.md",
+    "services/lending_engine/tests/__pycache__/test_acceptance_flow.cpython-311-pytest-9.0.2.pyc",
+    "services/lending_engine/tests/test_acceptance_flow.py",
+    "services/lending_engine/app/api/v1/routes/__pycache__/loans.cpython-312.pyc.135742425681456",
+    "04_SPRINTS/sprint-Sprint 2-identity,-fraud-controls-&-bank-matching-integration/HANDOFF_PROMPT.md",
+    "04_SPRINTS/sprint-Sprint 2-identity,-fraud-controls-&-bank-matching-integration/BLUEPRINT.md",
+    "04_SPRINTS/sprint-Sprint 2-identity,-fraud-controls-&-bank-matching-integration/ACCEPTANCE.md",
+    "01_PLANNING/domain.md",
+    "scratch/selfie.jpg",
+    "01_PLANNING/questions.md",
+    "01_PLANNING/risks.md",
+    "services/identity_engine/app/api/v1/routes/__pycache__/auth.cpython-311.pyc.131112659847184",
+    "00_BRAIN/RECOVERY_PROMPT.md",
+    "00_BRAIN/PROJECT_STATE.md",
+    "00_BRAIN/DECISIONS.md",
+    "admin-dashboard/src/app/(dashboard)/settings/test-bvn/page.tsx",
+    "admin-dashboard/src/app/(dashboard)/settings/test-bvn",
+    "admin-dashboard/src/app/api/admin/test-bvn-identities/route.ts",
+    "admin-dashboard/src/app/api/admin/test-bvn-identities",
+    "services/identity_engine/__pycache__/main.cpython-311.pyc.128682450396848",
+    "02_ARCHITECTURE/architecture.md"
+  ]
+}

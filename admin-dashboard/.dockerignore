@@ -1,0 +1,10 @@
+node_modules
+.next
+dist
+out
+.turbo
+.swc
+.cache
+npm-debug.log
+yarn-error.log
+.env
