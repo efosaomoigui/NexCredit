@@ -1,33 +1,61 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 function makeTraceId() {
   return `trace_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const defaultBaseUrl =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:8888/api/v1"
-    : "http://localhost:8888/api/v1";
+function getMetroHost(): string | null {
+  try {
+    const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
+    if (!scriptURL) return null;
+    const parsed = new URL(scriptURL);
+    return parsed.hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildBaseFromHost(host: string): string {
+  return `http://${host}:8888/api/v1`;
+}
+
+const metroHost = getMetroHost();
+const lanBaseUrl = metroHost ? buildBaseFromHost(metroHost) : "";
+const emulatorBaseUrl = Platform.OS === "android" ? "http://10.0.2.2:8888/api/v1" : "http://localhost:8888/api/v1";
+const explicitEnvBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || "").trim();
+const resolvedBaseUrl = explicitEnvBaseUrl || lanBaseUrl || emulatorBaseUrl;
+
+export function getResolvedApiBaseUrl(): string {
+  return resolvedBaseUrl;
+}
 
 export function getIdentityStartCandidates(): string[] {
-  const envBase = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+  const primary = getResolvedApiBaseUrl();
+  const bases = [
+    explicitEnvBaseUrl,
+    lanBaseUrl,
+    emulatorBaseUrl,
+    "http://localhost:8888/api/v1",
+    "http://127.0.0.1:8888/api/v1",
+    "http://10.0.2.2:8888/api/v1",
+    "http://localhost:8001/api/v1",
+    "http://127.0.0.1:8001/api/v1",
+    "http://10.0.2.2:8001/api/v1",
+  ].filter((v): v is string => Boolean(v));
+
   const candidates = [
-    `${envBase || defaultBaseUrl}/identity/auth/start`,
-    "http://localhost:8888/api/v1/identity/auth/start",
-    "http://127.0.0.1:8888/api/v1/identity/auth/start",
-    "http://10.0.2.2:8888/api/v1/identity/auth/start",
-    "http://localhost:8001/api/v1/auth/start",
-    "http://127.0.0.1:8001/api/v1/auth/start",
-    "http://10.0.2.2:8001/api/v1/auth/start",
+    `${primary}/identity/auth/start`,
+    ...bases.map((base) => `${base}/identity/auth/start`),
+    ...bases.map((base) => `${base}/auth/start`),
   ].filter((v): v is string => Boolean(v));
 
   return [...new Set(candidates)];
 }
 
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL || defaultBaseUrl,
+  baseURL: getResolvedApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -60,7 +88,7 @@ api.interceptors.response.use(
 
     try {
       const refreshRes = await axios.post(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL || defaultBaseUrl}/identity/auth/refresh`,
+        `${getResolvedApiBaseUrl()}/identity/auth/refresh`,
         {},
         { headers: { Authorization: `Bearer ${refreshToken}` } }
       );

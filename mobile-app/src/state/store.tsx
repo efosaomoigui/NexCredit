@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer } from
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import api from "../lib/api";
-import { getIdentityStartCandidates } from "../lib/api";
+import { getIdentityStartCandidates, getResolvedApiBaseUrl } from "../lib/api";
 import { getCheckpoint, isCheckpointAtOrBeyond, mapBackendWorkflowStatusToCheckpoint, setCheckpoint } from "../lib/onboarding";
 
 export type KycStatus = "unverified" | "pending" | "verified";
@@ -263,7 +263,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             throw new Error("Request timed out. Please tap Continue again.");
           }
           if (isNetwork) {
-            throw new Error("Network error: unable to reach identity service. Check backend/gateway and API base URL.");
+            const base = getResolvedApiBaseUrl();
+            const attempted = candidates.slice(0, 2).join(" or ");
+            throw new Error(
+              `Unable to reach identity service from this device. ` +
+              `Current API base: ${base}. ` +
+              `Tried: ${attempted}. ` +
+              `If using a physical phone, set EXPO_PUBLIC_API_BASE_URL to your computer LAN IP (example: http://192.168.x.x:8888/api/v1).`
+            );
           }
           throw new Error(lastError?.response?.data?.error?.message || lastError?.message || "Failed to send OTP");
         },
