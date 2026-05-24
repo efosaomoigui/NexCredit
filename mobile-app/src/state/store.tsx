@@ -384,7 +384,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               product_id: null,
               tenor: payload.tenorDays || 30,
               purpose: payload.purpose || "Personal Loan",
-            });
+            }, { timeout: 15000 });
             if (res.data.success) {
               await this.fetchLoans();
               return res.data.data.id;
@@ -412,7 +412,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           await requireSessionToken();
           let res: any;
           try {
-            res = await api.post(`/lending/loans/accept/${applicationId}`, { signature_payload: "User Signed", timestamp: new Date().toISOString() });
+            res = await api.post(
+              `/lending/loans/accept/${applicationId}`,
+              { signature_payload: "User Signed", timestamp: new Date().toISOString() },
+              { timeout: 15000 }
+            );
           } catch (error: any) {
             if (isUnauthorizedError(error)) {
               throw new Error("Session expired. Please sign in again.");
