@@ -102,7 +102,7 @@ async def test_first_time_onboarding_and_acceptance_persists_records():
         status=LoanApplicationStatus.AGREEMENT_PENDING,
     )
 
-    db_for_apply = _FakeDb([kyc, None, None, [], [product], product])
+    db_for_apply = _FakeDb([kyc, None, None, [], [product], kyc, product])
     payload = LoanApplicationRequest(requested_amount=10000, tenor=30, purpose="Personal")
     apply_response = await loans_routes.apply_for_loan(data=payload, db=db_for_apply, user=user)
     apply_body = json.loads(apply_response.body.decode())

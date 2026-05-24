@@ -302,6 +302,10 @@ async def _seed_simulation_data(session: AsyncSession) -> None:
         ("22567890123", "+2348091110002", "Musa", "Bello", datetime(1989, 1, 9).date()),
         ("22789012345", "+2348091110003", "Kemi", "Adebayo", datetime(1996, 11, 3).date()),
         ("22901234567", "+2348091110004", "Chinedu", "Nwosu", datetime(1992, 5, 14).date()),
+        ("22123456789", "+2348091110005", "Bola", "Akinola", datetime(1991, 2, 10).date()),
+        ("22098765432", "+2348091110006", "Ifeoma", "Eze", datetime(1998, 7, 2).date()),
+        ("22444555666", "+2348091110007", "Tunde", "Lawal", datetime(1987, 10, 27).date()),
+        ("22666777888", "+2348091110008", "Fatima", "Yusuf", datetime(1995, 3, 30).date()),
     ]
     for bvn, phone, first, last, dob in bvn_rows:
         exists = (await session.execute(select(TestBvnIdentity).where(TestBvnIdentity.bvn == bvn))).scalar_one_or_none()
@@ -322,6 +326,10 @@ async def _seed_simulation_data(session: AsyncSession) -> None:
         ("22567890123", 62, "B", "medium", 150000, "manual_review"),
         ("22789012345", 54, "C", "medium", 90000, "manual_review"),
         ("22901234567", 48, "D", "high", 50000, "decline"),
+        ("22123456789", 91, "A", "low", 300000, "approve"),
+        ("22098765432", 40, "D", "high", 35000, "decline"),
+        ("22444555666", 67, "B", "medium", 180000, "manual_review"),
+        ("22666777888", 73, "A", "low", 220000, "approve"),
     ]
     for bvn, score, band, risk, limit, hint in credit_rows:
         exists = (await session.execute(select(SimCreditProfile).where(SimCreditProfile.bvn == bvn))).scalar_one_or_none()
@@ -343,6 +351,14 @@ async def _seed_simulation_data(session: AsyncSession) -> None:
         ("058", "GTBank", "0234567890", "Musa Bello", "22567890123"),
         ("033", "UBA", "0345678901", "Kemi Adebayo", "22789012345"),
         ("057", "Zenith Bank", "0456789012", "Chinedu Nwosu", "22901234567"),
+        ("011", "First Bank", "0567890123", "Bola Akinola", "22123456789"),
+        ("214", "FCMB", "0678901234", "Ifeoma Eze", "22098765432"),
+        ("232", "Sterling Bank", "0789012345", "Tunde Lawal", "22444555666"),
+        ("082", "Keystone Bank", "0890123456", "Fatima Yusuf", "22666777888"),
+        # Intentional mismatch fixture for name-match negative tests.
+        ("033", "UBA", "0901234567", "Unknown Person", "22345678901"),
+        # Generic account without BVN linkage to cover lookup-only scenarios.
+        ("058", "GTBank", "0912345678", "Sandbox Account", None),
     ]
     for bank_code, bank_name, account_number, account_name, bvn in bank_rows:
         exists = (
