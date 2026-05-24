@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer } from
 import * as SecureStore from "expo-secure-store";
 import axios from "axios";
 import api from "../lib/api";
-import { getIdentityStartCandidates } from "../lib/api";
+import { getIdentityStartCandidates, getResolvedApiBaseUrl } from "../lib/api";
 import { getCheckpoint, isCheckpointAtOrBeyond, mapBackendWorkflowStatusToCheckpoint, setCheckpoint } from "../lib/onboarding";
 
 export type KycStatus = "unverified" | "pending" | "verified";
@@ -170,9 +170,22 @@ type StoreApi = {
     fetchLoans: () => Promise<void>;
     fetchDashboard: () => Promise<void>;
     fetchEligibility: () => Promise<{ maxLimit: number; interestRate: number; processingFee: number }>;
+    fetchKycStatus: () => Promise<{ canApply: boolean; steps?: Record<string, string> }>;
     submitApplication: (payload: { amount: number; tenorDays: number; purpose: string }) => Promise<string>;
     acceptOffer: (applicationId: string) => Promise<{ applicationStatus?: string }>;
-    updatePersonalInfo: (payload: { fullName: string; dob: string; gender: string; address: string; marital: string }) => Promise<void>;
+    updatePersonalInfo: (payload: {
+      fullName: string;
+      dob: string;
+      gender: string;
+      address: string;
+      marital: string;
+      nextOfKin?: Array<{
+        firstName: string;
+        lastName: string;
+        phone: string;
+        relationship: string;
+      }>;
+    }) => Promise<void>;
     updateEmploymentInfo: (payload: { empType: string; employer: string; income: string; salaryDate: string }) => Promise<void>;
     verifyBankAccount: (payload: { bankCode: string; accountNumber: string; bankName: string }) => Promise<{ accountName: string }>;
   };
@@ -263,7 +276,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             throw new Error("Request timed out. Please tap Continue again.");
           }
           if (isNetwork) {
-            throw new Error("Network error: unable to reach identity service. Check backend/gateway and API base URL.");
+            const base = getResolvedApiBaseUrl();
+            const attempted = candidates.slice(0, 2).join(" or ");
+            throw new Error(
+              `Unable to reach identity service from this device. ` +
+              `Current API base: ${base}. ` +
+              `Tried: ${attempted}. ` +
+              `If using a physical phone, set EXPO_PUBLIC_API_BASE_URL to your computer LAN IP (example: http://192.168.x.x:8888/api/v1).`
+            );
           }
           throw new Error(lastError?.response?.data?.error?.message || lastError?.message || "Failed to send OTP");
         },
@@ -374,6 +394,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             maxLimit: Number(res.data.data.max_limit || 0),
             interestRate: Number(res.data.data.interest_rate || 0),
             processingFee: Number(res.data.data.processing_fee || 0),
+          };
+        },
+        async fetchKycStatus() {
+          const res = await api.get("/identity/kyc/status");
+          if (!res.data.success) throw new Error(res.data.error?.message || "Unable to fetch KYC status");
+          return {
+            canApply: Boolean(res.data.data?.can_apply),
+            steps: res.data.data?.steps || {},
           };
         },
         async submitApplication(payload) {

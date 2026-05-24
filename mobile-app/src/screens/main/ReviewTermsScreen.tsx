@@ -10,10 +10,10 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import Slider from "@react-native-community/slider";
 import { theme } from "../../theme/theme";
 import { useStore } from "../../state/store";
 import {
+  getBackendCheckpoint,
   getCheckpoint,
   isCheckpointAtOrBeyond,
   mapBackendWorkflowStatusToCheckpoint,
@@ -22,41 +22,102 @@ import {
 
 const PENDING_APPLICATION_ID_KEY = "onboarding_pending_application_id";
 const ACCEPT_IN_FLIGHT_KEY = "onboarding_accept_in_flight";
+const BANK_FETCH_TIMEOUT_MS = 5000;
 
 export default function ReviewTermsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { actions } = useStore();
+
   const [offer, setOffer] = useState<any>(null);
   const [bankInfo, setBankInfo] = useState<any>(null);
+  const [bankState, setBankState] = useState<"loading" | "data" | "empty" | "error">("loading");
+  const [bankError, setBankError] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState(0);
   const [tenorDays, setTenorDays] = useState(30);
   const [installments, setInstallments] = useState(1);
+  const [purpose, setPurpose] = useState("Personal");
   const [interestRate, setInterestRate] = useState(0.035);
   const [processingFee, setProcessingFee] = useState(1500);
   const [submitError, setSubmitError] = useState("");
+  const [kycBlockMessage, setKycBlockMessage] = useState("");
   const [acceptPhase, setAcceptPhase] = useState<"idle" | "submitting" | "confirming" | "reconciling">("idle");
+
+  const loadBankInfo = async () => {
+    setBankState("loading");
+    setBankError("");
+    setBankInfo(null);
+
+    try {
+      const raw = await Promise.race<string | null>([
+        SecureStore.getItemAsync("onboarding_bank"),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), BANK_FETCH_TIMEOUT_MS)
+        ),
+      ]);
+
+      if (!raw) {
+        setBankState("empty");
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!parsed?.bank || !parsed?.accountNumber) {
+        setBankState("empty");
+        return;
+      }
+
+      setBankInfo(parsed);
+      setBankState("data");
+    } catch {
+      setBankState("error");
+      setBankError("Could not load your bank account right now. Please retry.");
+    }
+  };
 
   useEffect(() => {
     (async () => {
       const oStr = await SecureStore.getItemAsync("onboarding_loan_offer");
-      const bStr = await SecureStore.getItemAsync("onboarding_bank");
       const sStr = await SecureStore.getItemAsync("user_loan_selection");
-      if (bStr) setBankInfo(JSON.parse(bStr));
+
+      if (oStr) {
+        const parsedOffer = JSON.parse(oStr);
+        setOffer(parsedOffer);
+        setAmount(Number(parsedOffer.requestedAmount || parsedOffer.maxLimit || 0));
+        setTenorDays(Number(parsedOffer.tenorDays || 30));
+        if (parsedOffer.purpose) setPurpose(String(parsedOffer.purpose));
+      }
+
       if (sStr) {
         const s = JSON.parse(sStr);
-        setAmount(s.amount);
-        setTenorDays(s.tenorDays);
-        setInstallments(s.installments);
+        if (typeof s.amount === "number") setAmount(s.amount);
+        if (typeof s.tenorDays === "number") setTenorDays(s.tenorDays);
+        if (typeof s.installments === "number") setInstallments(s.installments);
+        if (typeof s.purpose === "string" && s.purpose.trim()) setPurpose(s.purpose.trim());
       }
-      if (oStr) setOffer(JSON.parse(oStr));
+
+      await loadBankInfo();
+
       try {
         const eligibility = await actions.fetchEligibility();
         if (eligibility.interestRate > 0) setInterestRate(eligibility.interestRate);
         setProcessingFee(eligibility.processingFee);
       } catch {
-        // Screen keeps rendering if eligibility fetch is temporarily unavailable.
+        // keep fallback values
+      }
+
+      try {
+        const backendCheckpoint = await getBackendCheckpoint(8000);
+        const kycStatus = await actions.fetchKycStatus();
+        if (!kycStatus.canApply && backendCheckpoint && !isCheckpointAtOrBeyond(backendCheckpoint, "kyc_bvn_face")) {
+          setKycBlockMessage("KYC incomplete. Please verify your identity first.");
+        } else {
+          setKycBlockMessage("");
+        }
+      } catch {
+        // avoid false KYC block when backend cannot be confirmed
       }
 
       const inflight = await SecureStore.getItemAsync(ACCEPT_IN_FLIGHT_KEY);
@@ -92,6 +153,29 @@ export default function ReviewTermsScreen() {
 
   const handleAccept = async () => {
     if (loading) return;
+
+    if (bankState === "loading") {
+      setSubmitError("Please wait while we load your bank account details.");
+      return;
+    }
+    if (bankState === "empty") {
+      setSubmitError("No linked bank account found. Please add your bank account first.");
+      return;
+    }
+    if (bankState === "error") {
+      setSubmitError("Bank account details could not be loaded. Please retry.");
+      return;
+    }
+
+    if (kycBlockMessage) {
+      setSubmitError(kycBlockMessage);
+      return;
+    }
+    if (!amount || amount <= 0 || !tenorDays || tenorDays <= 0) {
+      setSubmitError("Please return and reselect your loan amount and duration.");
+      return;
+    }
+
     setSubmitError("");
     setLoading(true);
     try {
@@ -100,9 +184,9 @@ export default function ReviewTermsScreen() {
       if (!applicationId) {
         setAcceptPhase("submitting");
         applicationId = await actions.submitApplication({
-          amount: amount,
+          amount,
           tenorDays: days,
-          purpose: offer?.purpose || "Personal",
+          purpose,
         });
         await SecureStore.setItemAsync(PENDING_APPLICATION_ID_KEY, applicationId);
       }
@@ -134,9 +218,18 @@ export default function ReviewTermsScreen() {
 
   const fmt = (n: number) => "N" + n.toLocaleString();
 
+  const bankDisplay =
+    bankState === "loading"
+      ? "Loading account..."
+      : bankState === "empty"
+        ? "No linked account"
+        : bankState === "error"
+          ? "Unable to load account"
+          : `${bankInfo.bank} •••• ${String(bankInfo.accountNumber).slice(-4)}`;
+
   return (
     <View style={styles.container}>
-      <View style={[styles.hero, { paddingTop: insets.top + 52 }]}>
+      <View style={[styles.hero, { paddingTop: insets.top + 52 }]}> 
         <View style={styles.logoRow}>
           <View style={styles.logoBox}><Text style={styles.logoText}>NC</Text></View>
           <Text style={styles.logoName}>Monivo</Text>
@@ -149,13 +242,21 @@ export default function ReviewTermsScreen() {
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+        {kycBlockMessage ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Action required</Text>
+            <Text style={styles.errorBody}>{kycBlockMessage}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.infoCard}>
           {[
             { key: "Loan Amount", val: fmt(amount) },
+            { key: "Purpose", val: purpose },
             { key: "Total Interest", val: fmt(interest) },
             { key: "Processing Fee", val: fmt(processingFee) },
             { key: "Total Repayment", val: fmt(total), bold: true },
-            { key: "Disburse to", val: bankInfo ? `${bankInfo.bank} •••• ${bankInfo.accountNumber.slice(-4)}` : "Loading...", green: true },
+            { key: "Disburse to", val: bankDisplay, green: bankState === "data" },
           ].map((row, idx, arr) => (
             <View key={row.key} style={[styles.infoRow, idx < arr.length - 1 && styles.infoRowBorder]}>
               <Text style={styles.infoKey}>{row.key}</Text>
@@ -171,6 +272,26 @@ export default function ReviewTermsScreen() {
             </View>
           ))}
         </View>
+
+        {bankState === "empty" ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Bank account required</Text>
+            <Text style={styles.errorBody}>Please add your bank account before accepting this offer.</Text>
+            <Pressable style={styles.inlineActionBtn} onPress={() => navigation.navigate("BankLinking")}>
+              <Text style={styles.inlineActionBtnText}>Add Bank Account</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {bankState === "error" ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Bank account unavailable</Text>
+            <Text style={styles.errorBody}>{bankError || "Could not load your bank account right now."}</Text>
+            <Pressable style={styles.inlineActionBtn} onPress={loadBankInfo}>
+              <Text style={styles.inlineActionBtnText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.breakdownCard}>
           <Text style={styles.sliderLabel}>REPAYMENT SCHEDULE</Text>
@@ -214,7 +335,11 @@ export default function ReviewTermsScreen() {
           <Pressable style={styles.ghostBtn} disabled={loading} onPress={() => navigation.navigate("Main")}>
             <Text style={styles.ghostBtnText}>Decline</Text>
           </Pressable>
-          <Pressable style={styles.ctaBtn} disabled={loading} onPress={handleAccept}>
+          <Pressable
+            style={[styles.ctaBtn, (loading || bankState !== "data") && styles.ctaBtnDisabled]}
+            disabled={loading || bankState !== "data"}
+            onPress={handleAccept}
+          >
             {loading ? (
               <View style={styles.loadingInline}>
                 <ActivityIndicator color="#fff" />
@@ -365,6 +490,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ctaBtnDisabled: {
+    opacity: 0.6,
+  },
   ctaBtnText: { fontFamily: theme.font.bold, fontSize: 14, color: "#FFFFFF" },
   loadingInline: {
     flexDirection: "row",
@@ -390,6 +518,19 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
+  },
+  inlineActionBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inlineActionBtnText: {
+    color: "#FFFFFF",
+    fontFamily: theme.font.bold,
+    fontSize: 12,
   },
 
   breakdownCard: {
