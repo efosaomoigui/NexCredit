@@ -37,6 +37,8 @@ const engines: Array<{ key: EngineKey; envVar: string; fallback: string }> = [
   { key: "crm_engine", envVar: "CRM_ENGINE_URL", fallback: "http://crm_engine:8000/api/v1" },
 ];
 
+const ENGINE_HEALTH_TIMEOUT_MS = 700;
+
 export async function GET(req: Request) {
   const token = getTokenCookie(req);
   if (!token) {
@@ -52,7 +54,10 @@ export async function GET(req: Request) {
       const url = healthUrlFromServiceUrl(serviceUrl);
       const startedAt = Date.now();
       try {
-        const resp = await fetch(url, { cache: "no-store" });
+        const resp = await fetch(url, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(ENGINE_HEALTH_TIMEOUT_MS),
+        });
         const latencyMs = Date.now() - startedAt;
         const json = (await resp.json().catch(() => null)) as any;
         return {
@@ -79,4 +84,3 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ success: true, data: { engines: results }, message: "OK" });
 }
-

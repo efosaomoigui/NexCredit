@@ -45,3 +45,21 @@ This runbook is a living document and must be updated as bank/payment integratio
 - Confirm Phase 1 constraints before go-live:
   - Max loan amount/tenor must match `AGENT.md` defaults.
   - No automated approvals in Phase 1; human review remains mandatory.
+
+## Local Dev Startup Latency (Admin)
+
+- Symptom: first click on Admin Dashboard after restart can be slow because Next.js dev server compiles routes on first hit and backend engines may still be cold.
+- Pre-warm command (PowerShell):
+  - `.\scripts\prewarm-admin.ps1`
+- Optional authenticated warm-up:
+  - `.\scripts\prewarm-admin.ps1 -Token "<staff_access_token>"`
+- What is warmed:
+  - `/login`
+  - `/api/auth/me`
+  - `/api/system/engines`
+  - `/api/admin/lending-products`
+
+### Startup Sequencing Note
+
+- For local Docker runs, start `postgres`, `identity_engine`, and `lending_engine` before first Admin Dashboard navigation when possible.
+- If startup races occur, run the pre-warm script after containers report healthy to reduce first-request latency spikes.
