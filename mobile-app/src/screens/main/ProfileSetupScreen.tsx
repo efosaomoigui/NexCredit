@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MoveRight } from "lucide-react-native";
 import * as Contacts from "expo-contacts";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import { theme } from "../../theme/theme";
 import { useStore } from "../../state/store";
 import { setCheckpoint } from "../../lib/onboarding";
@@ -23,6 +24,7 @@ import { setCheckpoint } from "../../lib/onboarding";
 const EMP_TYPES = ["Salaried", "Business Owner", "Trader/Farmer", "Mixed Income"];
 const INCOME_RANGES = ["< NGN 50k", "NGN 50k - NGN 150k", "NGN 150k - NGN 300k", "> NGN 300k"];
 const NIGERIAN_STATES = ["Lagos", "Abuja (FCT)", "Rivers", "Oyo", "Kano", "Ogun", "Delta", "Anambra", "Edo", "Kaduna"];
+const NOK_RELATIONSHIPS = ["Spouse", "Parent", "Sibling", "Friend", "Other"];
 
 const MOCK_ADDRESSES = [
   "123 Ikorodu Road, Obanikoro, Lagos",
@@ -50,7 +52,7 @@ function formatReverseGeocodeAddress(parts: Location.LocationGeocodedAddress): s
 export default function ProfileSetupScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { actions } = useStore();
+  const { state, actions } = useStore();
 
   const [address, setAddress] = useState("");
   const [stateName, setStateName] = useState("");
@@ -58,8 +60,8 @@ export default function ProfileSetupScreen() {
   const [income, setIncome] = useState("");
   const [employer, setEmployer] = useState("");
 
-  const [nok1, setNok1] = useState<{ firstName: string; lastName: string; phone: string } | null>(null);
-  const [nok2, setNok2] = useState<{ firstName: string; lastName: string; phone: string } | null>(null);
+  const [nok1, setNok1] = useState<{ firstName: string; lastName: string; phone: string; relationship: string } | null>(null);
+  const [nok2, setNok2] = useState<{ firstName: string; lastName: string; phone: string; relationship: string } | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -134,7 +136,7 @@ export default function ProfileSetupScreen() {
         const firstName = nameParts[0] || "Unknown";
         const lastName = nameParts.slice(1).join(" ") || "Contact";
         const phone = contact.phoneNumbers && contact.phoneNumbers.length > 0 ? contact.phoneNumbers[0].number : "";
-        setter({ firstName, lastName, phone });
+        setter({ firstName, lastName, phone, relationship: "" });
       }
     } catch {
       setError("Could not pick contact. Please enter manually.");
@@ -150,6 +152,10 @@ export default function ProfileSetupScreen() {
       setError("Please provide first and last names for both contacts.");
       return;
     }
+    if (!nok1.relationship || !nok2.relationship) {
+      setError("Please select a relationship for both Next of Kins.");
+      return;
+    }
     if (!locationVerified) {
       setError("Please allow location and confirm you are in Nigeria to continue.");
       return;
@@ -158,13 +164,22 @@ export default function ProfileSetupScreen() {
     setLoading(true);
     setError("");
     try {
-      const fullName = `${nok1.firstName} ${nok1.lastName}`.trim();
+      const personalInfoRaw = await SecureStore.getItemAsync("onboarding_personal_info");
+      const personalInfoName = personalInfoRaw
+        ? String(JSON.parse(personalInfoRaw)?.fullName || "").trim()
+        : "";
+      const storeName = String(state.borrower?.fullName || "").trim();
+      const fullName = personalInfoName || storeName;
+      if (!fullName || fullName.toLowerCase() === "guest") {
+        throw new Error("Borrower identity is missing. Please complete BVN verification and try again.");
+      }
       await actions.updatePersonalInfo({
         fullName,
         dob: "1990-01-01",
         gender: "Male",
         address: `${address}, ${stateName}`,
         marital: "Single",
+        nextOfKin: [nok1, nok2],
       });
 
       await actions.updateEmploymentInfo({
@@ -193,7 +208,7 @@ export default function ProfileSetupScreen() {
       }
 
       await setCheckpoint("consent");
-      navigation.navigate("ApprovalStatus");
+      navigation.navigate("BankLinking");
     } catch (e: any) {
       setError(e?.message || "Failed to save information. Please check your connection.");
     } finally {
@@ -204,6 +219,9 @@ export default function ProfileSetupScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}> 
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backArrow}>‹</Text>
+        </Pressable>
         <View style={styles.headerContent}>
           <Text style={styles.headline}>Profile Setup</Text>
           <Text style={styles.subText}>Tell me a bit more about you.</Text>
@@ -279,10 +297,18 @@ export default function ProfileSetupScreen() {
         <View style={styles.nokCard}>
           <Text style={styles.nokTitle}>Next of Kin 1</Text>
           <View style={styles.rowInputs}>
-            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="First Name" value={nok1?.firstName || ""} onChangeText={(f) => setNok1((prev) => ({ ...prev, firstName: f, phone: prev?.phone || "", lastName: prev?.lastName || "" }))} />
-            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="Last Name" value={nok1?.lastName || ""} onChangeText={(l) => setNok1((prev) => ({ ...prev, lastName: l, phone: prev?.phone || "", firstName: prev?.firstName || "" }))} />
+            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="First Name" value={nok1?.firstName || ""} onChangeText={(f) => setNok1((prev) => ({ ...prev, firstName: f, phone: prev?.phone || "", lastName: prev?.lastName || "", relationship: prev?.relationship || "" }))} />
+            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="Last Name" value={nok1?.lastName || ""} onChangeText={(l) => setNok1((prev) => ({ ...prev, lastName: l, phone: prev?.phone || "", firstName: prev?.firstName || "", relationship: prev?.relationship || "" }))} />
           </View>
-          <TextInput style={styles.input} placeholder="Phone Number" value={nok1?.phone || ""} onChangeText={(p) => setNok1((prev) => ({ ...prev, phone: p, firstName: prev?.firstName || "", lastName: prev?.lastName || "" }))} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="Phone Number" value={nok1?.phone || ""} onChangeText={(p) => setNok1((prev) => ({ ...prev, phone: p, firstName: prev?.firstName || "", lastName: prev?.lastName || "", relationship: prev?.relationship || "" }))} keyboardType="phone-pad" />
+          <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
+          <View style={styles.chipsRow}>
+            {NOK_RELATIONSHIPS.map((rel) => (
+              <Pressable key={rel} style={[styles.chip, nok1?.relationship === rel && styles.chipActive]} onPress={() => setNok1((prev) => ({ ...prev, relationship: rel, phone: prev?.phone || "", firstName: prev?.firstName || "", lastName: prev?.lastName || "" }))}>
+                <Text style={[styles.chipText, nok1?.relationship === rel && styles.chipTextActive]}>{rel}</Text>
+              </Pressable>
+            ))}
+          </View>
           <Pressable style={styles.contactBtn} onPress={() => handlePickContact(setNok1)}>
             <Text style={styles.contactBtnText}>Pick from Contacts</Text>
           </Pressable>
@@ -291,10 +317,18 @@ export default function ProfileSetupScreen() {
         <View style={styles.nokCard}>
           <Text style={styles.nokTitle}>Next of Kin 2</Text>
           <View style={styles.rowInputs}>
-            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="First Name" value={nok2?.firstName || ""} onChangeText={(f) => setNok2((prev) => ({ ...prev, firstName: f, phone: prev?.phone || "", lastName: prev?.lastName || "" }))} />
-            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="Last Name" value={nok2?.lastName || ""} onChangeText={(l) => setNok2((prev) => ({ ...prev, lastName: l, phone: prev?.phone || "", firstName: prev?.firstName || "" }))} />
+            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="First Name" value={nok2?.firstName || ""} onChangeText={(f) => setNok2((prev) => ({ ...prev, firstName: f, phone: prev?.phone || "", lastName: prev?.lastName || "", relationship: prev?.relationship || "" }))} />
+            <TextInput style={[styles.input, styles.rowInputItem]} placeholder="Last Name" value={nok2?.lastName || ""} onChangeText={(l) => setNok2((prev) => ({ ...prev, lastName: l, phone: prev?.phone || "", firstName: prev?.firstName || "", relationship: prev?.relationship || "" }))} />
           </View>
-          <TextInput style={styles.input} placeholder="Phone Number" value={nok2?.phone || ""} onChangeText={(p) => setNok2((prev) => ({ ...prev, phone: p, firstName: prev?.firstName || "", lastName: prev?.lastName || "" }))} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="Phone Number" value={nok2?.phone || ""} onChangeText={(p) => setNok2((prev) => ({ ...prev, phone: p, firstName: prev?.firstName || "", lastName: prev?.lastName || "", relationship: prev?.relationship || "" }))} keyboardType="phone-pad" />
+          <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
+          <View style={styles.chipsRow}>
+            {NOK_RELATIONSHIPS.map((rel) => (
+              <Pressable key={rel} style={[styles.chip, nok2?.relationship === rel && styles.chipActive]} onPress={() => setNok2((prev) => ({ ...prev, relationship: rel, phone: prev?.phone || "", firstName: prev?.firstName || "", lastName: prev?.lastName || "" }))}>
+                <Text style={[styles.chipText, nok2?.relationship === rel && styles.chipTextActive]}>{rel}</Text>
+              </Pressable>
+            ))}
+          </View>
           <Pressable style={styles.contactBtn} onPress={() => handlePickContact(setNok2)}>
             <Text style={styles.contactBtnText}>Pick from Contacts</Text>
           </Pressable>
@@ -317,7 +351,20 @@ export default function ProfileSetupScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingBottom: 28 },
+  header: { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingBottom: 28, position: "relative" },
+  backBtn: {
+    position: "absolute",
+    top: 56,
+    left: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  backArrow: { color: "#FFFFFF", fontSize: 26, lineHeight: 28, marginTop: -2 },
   headerContent: { marginTop: 64 },
   headline: { fontFamily: theme.font.extrabold, fontSize: 28, color: "#FFFFFF", lineHeight: 36, marginBottom: 4 },
   subText: { fontFamily: theme.font.body, fontSize: 13, color: "rgba(255,255,255,0.5)" },

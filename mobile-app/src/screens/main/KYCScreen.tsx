@@ -32,8 +32,16 @@ export default function KYCScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraRef, setCameraRef] = useState<CameraView | null>(null);
   const [selfieHint, setSelfieHint] = useState("Bring your face into the circle");
-
   const isValid = bvn.length === 11;
+  const handleBack = () => {
+    if (loading) return;
+    if (step === "selfie") {
+      setStep("bvn");
+      setError("");
+      return;
+    }
+    navigation.goBack();
+  };
 
   const handleVerify = async () => {
     if (!isValid || loading) return;
@@ -56,8 +64,8 @@ export default function KYCScreen() {
           throw new Error("Something went wrong. Please try again.");
         }
       } catch (e) {
-        console.warn("Backend not reachable for BVN verification. MOCKING success.");
-        success = true; // Fallback for dev
+        console.warn("BVN verification failed", e);
+        throw new Error("BVN verification could not be confirmed by server. Please check connection and retry.");
       }
 
       if (!success) return;
@@ -105,8 +113,8 @@ export default function KYCScreen() {
         });
         if (res.data.success) selfieSuccess = true;
       } catch (e) {
-        console.warn("Backend not reachable for Selfie verification. MOCKING success.");
-        selfieSuccess = true; // Fallback for dev
+        console.warn("Selfie verification failed", e);
+        throw new Error("Selfie verification could not be confirmed by server. Please retry.");
       }
 
       if (!selfieSuccess) throw new Error("Face verification failed.");
@@ -125,6 +133,9 @@ export default function KYCScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <Pressable onPress={handleBack} style={styles.backBtn} disabled={loading}>
+            <Text style={styles.backArrow}>‹</Text>
+          </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.headline}>Take a Selfie</Text>
             <Text style={styles.subText}>Position your face in the frame.</Text>
@@ -170,6 +181,9 @@ export default function KYCScreen() {
     >
       {/* Navy Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Pressable onPress={handleBack} style={styles.backBtn} disabled={loading}>
+          <Text style={styles.backArrow}>‹</Text>
+        </Pressable>
         <View style={styles.headerContent}>
           <Text style={styles.headline}>Identity Verification</Text>
           <Text style={styles.subText}>Securely confirm your BVN and identity.</Text>

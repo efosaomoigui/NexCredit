@@ -424,17 +424,31 @@ async def verify_bank_account(
     
     verified = match_ratio > 80
     
-    new_account = BankAccount(
-        user_id=user.id,
-        account_number=data.account_number,
-        account_number_hash=hashlib.sha256(f"{user.id}:{data.bank_code}:{data.account_number}".encode()).hexdigest(),
-        bank_code=data.bank_code,
-        bank_name=mock_res["data"]["bank_name"],
-        account_name=mock_res["data"]["account_name"],
-        verified=verified,
-        is_primary=True
+    account_hash = hashlib.sha256(f"{user.id}:{data.bank_code}:{data.account_number}".encode()).hexdigest()
+    existing_stmt = select(BankAccount).where(
+        BankAccount.user_id == user.id,
+        BankAccount.bank_code == data.bank_code,
+        BankAccount.account_number_hash == account_hash,
     )
-    db.add(new_account)
+    existing_account = (await db.execute(existing_stmt)).scalar_one_or_none()
+
+    if existing_account:
+        existing_account.account_name = mock_res["data"]["account_name"]
+        existing_account.bank_name = mock_res["data"]["bank_name"]
+        existing_account.verified = verified
+        existing_account.is_primary = True
+    else:
+        new_account = BankAccount(
+            user_id=user.id,
+            account_number=data.account_number,
+            account_number_hash=account_hash,
+            bank_code=data.bank_code,
+            bank_name=mock_res["data"]["bank_name"],
+            account_name=mock_res["data"]["account_name"],
+            verified=verified,
+            is_primary=True
+        )
+        db.add(new_account)
     
     if not verified:
         await db.commit()

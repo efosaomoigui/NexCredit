@@ -78,6 +78,17 @@ from shared.models.settings import (
     EngineControl,
     PricingPolicyConfig,
 )
+from shared.models.crm import (
+    SupportTicket,
+    TicketMessage,
+    TicketStatus,
+)
+from shared.auth.rbac import Role
+
+# Backward-compat aliases for legacy imports still used by some services
+KYCRecord = KycRecord
+BureauReport = CreditBureauReport
+BankingData = BankAccount
 
 # Expose metadata for Alembic
 metadata = Base.metadata
@@ -110,4 +121,8 @@ __all__ = [
     "AuditLog", "ConsentRecord",
     # Settings
     "EngineControl", "PricingPolicyConfig",
+    # CRM
+    "SupportTicket", "TicketMessage", "TicketStatus",
+    # Legacy aliases
+    "Role", "KYCRecord", "BureauReport", "BankingData",
 ]

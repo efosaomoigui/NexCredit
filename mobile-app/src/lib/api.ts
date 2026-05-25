@@ -1,20 +1,45 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 function makeTraceId() {
   return `trace_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const defaultBaseUrl =
-  Platform.OS === "android"
+function getMetroHost(): string | null {
+  try {
+    const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
+    if (!scriptURL) return null;
+    const parsed = new URL(scriptURL);
+    return parsed.hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function getDefaultBaseUrl(): string {
+  const metroHost = getMetroHost();
+  if (metroHost && metroHost !== "localhost" && metroHost !== "127.0.0.1") {
+    return `http://${metroHost}:8888/api/v1`;
+  }
+
+  return Platform.OS === "android"
     ? "http://10.0.2.2:8888/api/v1"
     : "http://localhost:8888/api/v1";
+}
+
+export function getResolvedApiBaseUrl(): string {
+  return process.env.EXPO_PUBLIC_API_BASE_URL || getDefaultBaseUrl();
+}
 
 export function getIdentityStartCandidates(): string[] {
   const envBase = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+  const resolvedBase = getResolvedApiBaseUrl();
   const candidates = [
-    `${envBase || defaultBaseUrl}/identity/auth/start`,
+    `${resolvedBase}/identity/auth/start`,
+    `${resolvedBase}/auth/start`,
+    `${envBase}/identity/auth/start`,
+    `${envBase}/auth/start`,
     "http://localhost:8888/api/v1/identity/auth/start",
     "http://127.0.0.1:8888/api/v1/identity/auth/start",
     "http://10.0.2.2:8888/api/v1/identity/auth/start",
@@ -27,7 +52,7 @@ export function getIdentityStartCandidates(): string[] {
 }
 
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL || defaultBaseUrl,
+  baseURL: getResolvedApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -60,7 +85,7 @@ api.interceptors.response.use(
 
     try {
       const refreshRes = await axios.post(
-        `${process.env.EXPO_PUBLIC_API_BASE_URL || defaultBaseUrl}/identity/auth/refresh`,
+        `${getResolvedApiBaseUrl()}/identity/auth/refresh`,
         {},
         { headers: { Authorization: `Bearer ${refreshToken}` } }
       );

@@ -14,6 +14,8 @@ export default function LoanConfigurationScreen() {
   const navigation = useNavigation<any>();
   const { actions } = useStore();
 
+  const NAIRA = "\u20A6";
+
   const [amount, setAmount] = useState(0);
   const [amountInput, setAmountInput] = useState("");
   const [isAmountEditing, setIsAmountEditing] = useState(false);
@@ -22,47 +24,97 @@ export default function LoanConfigurationScreen() {
   const [installments, setInstallments] = useState(1);
   const [stagesOpen, setStagesOpen] = useState(false);
   const [interestRate, setInterestRate] = useState(0.26);
+  const [processingFee, setProcessingFee] = useState(1500);
+  const [purpose, setPurpose] = useState("Personal");
 
-  const stageRate = interestRate;
-  const processingFee = 1500;
-  const principalPerStage = Math.round(amount / installments);
-  const interestPerStage = Math.round(amount * stageRate);
-  const perInstallment = principalPerStage + interestPerStage;
-  const interest = interestPerStage * installments;
+  const clampAmount = (n: number) => Math.max(5000, Math.min(maxLimit, n));
+
+  const normalizedMonthlyRate = interestRate > 1 ? interestRate / 100 : interestRate;
+  const interest = Math.round(amount * normalizedMonthlyRate * (tenorDays / 30));
   const totalRepayment = amount + interest + processingFee;
+  const perInstallment = Math.round(totalRepayment / installments);
 
   useEffect(() => {
     (async () => {
       const oStr = await SecureStore.getItemAsync("onboarding_loan_offer");
+      const sStr = await SecureStore.getItemAsync("user_loan_selection");
+
       if (oStr) {
         const o = JSON.parse(oStr);
         const initial = o.maxLimit || 25000;
         setMaxLimit(initial);
         setAmount(initial);
         setAmountInput(`${NAIRA}${initial.toLocaleString()}`);
+        if (typeof o.purpose === "string" && o.purpose.trim()) {
+          setPurpose(o.purpose.trim());
+        }
       }
+
+      if (sStr) {
+        const s = JSON.parse(sStr);
+        if (typeof s.amount === "number") {
+          const next = clampAmount(s.amount);
+          setAmount(next);
+          setAmountInput(`${NAIRA}${next.toLocaleString()}`);
+        }
+        if (typeof s.tenorDays === "number") setTenorDays(s.tenorDays);
+        if (typeof s.installments === "number") setInstallments(Math.max(1, Math.min(4, s.installments)));
+        if (typeof s.purpose === "string" && s.purpose.trim()) setPurpose(s.purpose.trim());
+      }
+
       try {
         const eligibility = await actions.fetchEligibility();
         const backendRate = Number(eligibility.interestRate);
         if (!Number.isNaN(backendRate) && backendRate > 0) {
           setInterestRate(backendRate);
         }
+        const backendFee = Number(eligibility.processingFee);
+        if (!Number.isNaN(backendFee) && backendFee >= 0) {
+          setProcessingFee(backendFee);
+        }
+
+        await SecureStore.setItemAsync(
+          "onboarding_eligibility_snapshot",
+          JSON.stringify({
+            maxLimit: eligibility.maxLimit,
+            interestRate: backendRate,
+            processingFee: backendFee,
+          })
+        );
       } catch {
-        // Keep fallback 26% when backend rate is unavailable.
+        // Keep fallback values when backend data is unavailable.
       }
     })();
   }, [actions]);
 
   const handleContinue = async () => {
-    const selection = { amount, tenorDays, installments };
+    const selection = { amount, tenorDays, installments, purpose };
     await SecureStore.setItemAsync("user_loan_selection", JSON.stringify(selection));
+    const bankRaw = await SecureStore.getItemAsync("onboarding_bank");
+    if (!bankRaw) {
+      await setCheckpoint("consent");
+      navigation.navigate("BankLinking");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(bankRaw);
+      if (!parsed?.bank || !parsed?.accountNumber) {
+        await setCheckpoint("consent");
+        navigation.navigate("BankLinking");
+        return;
+      }
+    } catch {
+      await setCheckpoint("consent");
+      navigation.navigate("BankLinking");
+      return;
+    }
+
     await setCheckpoint("offer_ready");
     navigation.navigate("ReviewTerms");
   };
 
-  const NAIRA = "\u20A6";
   const fmt = (n: number) => `${NAIRA}${n.toLocaleString()}`;
-  const clampAmount = (n: number) => Math.max(5000, Math.min(maxLimit, n));
 
   const handleAmountInputChange = (val: string) => {
     const digits = val.replace(/\D/g, "");
@@ -189,6 +241,10 @@ export default function LoanConfigurationScreen() {
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownKey}>Total Interest</Text>
                 <Text style={styles.breakdownVal}>{fmt(interest)}</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownKey}>Interest Rate</Text>
+                <Text style={styles.breakdownVal}>{(normalizedMonthlyRate * 100).toFixed(1)}% / month</Text>
               </View>
               <View style={styles.breakdownRow}>
                 <Text style={styles.breakdownKey}>Processing Fee</Text>

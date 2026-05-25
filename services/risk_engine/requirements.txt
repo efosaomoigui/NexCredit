@@ -17,6 +17,7 @@ python-jose[cryptography]>=3.3.0
 
 # HTTP client (integrations + mocks)
 httpx>=0.27
+aiosmtplib>=3.0.1
 
 # Testing
 pytest>=8.0
